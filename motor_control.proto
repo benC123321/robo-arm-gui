@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package motor_control;
+
+service MotorControlService {
+  rpc SendCommand (MotorCommandRequest) returns (MotorCommandResponse);
+}
+
+message MotorCommandRequest {
+  int32 motor_id = 1;
+  int32 position  = 2;
+  int32 move_time = 3;
+}
+
+message MotorCommandResponse {
+  bool   success = 1;
+  string message = 2;
+}
