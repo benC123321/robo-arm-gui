@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 import argparse
-import tkinter as tk
-from tkinter import ttk
 
 import grpc
 import motor_control_pb2
@@ -92,7 +90,6 @@ def run_web():
     from flask import Flask, request, render_template_string
 
     app = Flask(__name__)
-
     defaults = dict(ip="localhost", port=50051, motor_id="", position="", move_time="")
 
     @app.route("/", methods=["GET", "POST"])
@@ -135,78 +132,84 @@ def run_web():
 
 # --- Desktop mode ---
 
-class RoboArmGui(tk.Tk):
-    def __init__(self):
-        super().__init__()
-        self.title("Robo Arm Control")
-        self.resizable(False, False)
-        self._build_ui()
+def run_desktop():
+    import tkinter as tk
+    from tkinter import ttk
 
-    def _build_ui(self):
-        pad = {"padx": 8, "pady": 4}
+    class RoboArmGui(tk.Tk):
+        def __init__(self):
+            super().__init__()
+            self.title("Robo Arm Control")
+            self.resizable(False, False)
+            self._build_ui()
 
-        frame = ttk.Frame(self, padding=16)
-        frame.grid(row=0, column=0)
+        def _build_ui(self):
+            pad = {"padx": 8, "pady": 4}
 
-        ttk.Label(frame, text="IP Address").grid(row=0, column=0, sticky="e", **pad)
-        self._ip = ttk.Entry(frame, width=20)
-        self._ip.insert(0, "localhost")
-        self._ip.grid(row=0, column=1, sticky="w", **pad)
+            frame = ttk.Frame(self, padding=16)
+            frame.grid(row=0, column=0)
 
-        ttk.Label(frame, text="Port").grid(row=0, column=2, sticky="e", **pad)
-        self._port = ttk.Entry(frame, width=8)
-        self._port.insert(0, "50051")
-        self._port.grid(row=0, column=3, sticky="w", **pad)
+            ttk.Label(frame, text="IP Address").grid(row=0, column=0, sticky="e", **pad)
+            self._ip = ttk.Entry(frame, width=20)
+            self._ip.insert(0, "localhost")
+            self._ip.grid(row=0, column=1, sticky="w", **pad)
 
-        ttk.Separator(frame, orient="horizontal").grid(
-            row=1, column=0, columnspan=4, sticky="ew", pady=8
-        )
+            ttk.Label(frame, text="Port").grid(row=0, column=2, sticky="e", **pad)
+            self._port = ttk.Entry(frame, width=8)
+            self._port.insert(0, "50051")
+            self._port.grid(row=0, column=3, sticky="w", **pad)
 
-        ttk.Label(frame, text="Motor ID  (0 – 255)").grid(row=2, column=0, sticky="e", **pad)
-        self._motor_id = ttk.Entry(frame, width=10)
-        self._motor_id.grid(row=2, column=1, sticky="w", **pad)
+            ttk.Separator(frame, orient="horizontal").grid(
+                row=1, column=0, columnspan=4, sticky="ew", pady=8
+            )
 
-        ttk.Label(frame, text="Position  (0 – 65535)").grid(row=3, column=0, sticky="e", **pad)
-        self._position = ttk.Entry(frame, width=10)
-        self._position.grid(row=3, column=1, sticky="w", **pad)
+            ttk.Label(frame, text="Motor ID  (0 – 255)").grid(row=2, column=0, sticky="e", **pad)
+            self._motor_id = ttk.Entry(frame, width=10)
+            self._motor_id.grid(row=2, column=1, sticky="w", **pad)
 
-        ttk.Label(frame, text="Move Time ms  (0 – 65535)").grid(row=4, column=0, sticky="e", **pad)
-        self._move_time = ttk.Entry(frame, width=10)
-        self._move_time.grid(row=4, column=1, sticky="w", **pad)
+            ttk.Label(frame, text="Position  (0 – 65535)").grid(row=3, column=0, sticky="e", **pad)
+            self._position = ttk.Entry(frame, width=10)
+            self._position.grid(row=3, column=1, sticky="w", **pad)
 
-        ttk.Button(frame, text="Send", command=self._on_send).grid(
-            row=5, column=0, columnspan=4, pady=(12, 4)
-        )
+            ttk.Label(frame, text="Move Time ms  (0 – 65535)").grid(row=4, column=0, sticky="e", **pad)
+            self._move_time = ttk.Entry(frame, width=10)
+            self._move_time.grid(row=4, column=1, sticky="w", **pad)
 
-        self._status_var = tk.StringVar(value="Ready")
-        ttk.Label(frame, textvariable=self._status_var, foreground="gray").grid(
-            row=6, column=0, columnspan=4, **pad
-        )
+            ttk.Button(frame, text="Send", command=self._on_send).grid(
+                row=5, column=0, columnspan=4, pady=(12, 4)
+            )
 
-    def _on_send(self):
-        ok_id,  motor_id  = _validate_uint(self._motor_id.get(),  UINT8_MAX)
-        ok_pos, position  = _validate_uint(self._position.get(),  UINT16_MAX)
-        ok_mt,  move_time = _validate_uint(self._move_time.get(), UINT16_MAX)
+            self._status_var = tk.StringVar(value="Ready")
+            ttk.Label(frame, textvariable=self._status_var, foreground="gray").grid(
+                row=6, column=0, columnspan=4, **pad
+            )
 
-        errors = []
-        if not ok_id:
-            errors.append("Motor ID must be 0–255")
-        if not ok_pos:
-            errors.append("Position must be 0–65535")
-        if not ok_mt:
-            errors.append("Move Time must be 0–65535")
-        if errors:
-            self._status_var.set(" | ".join(errors))
-            return
+        def _on_send(self):
+            ok_id,  motor_id  = _validate_uint(self._motor_id.get(),  UINT8_MAX)
+            ok_pos, position  = _validate_uint(self._position.get(),  UINT16_MAX)
+            ok_mt,  move_time = _validate_uint(self._move_time.get(), UINT16_MAX)
 
-        try:
-            port = int(self._port.get().strip())
-        except ValueError:
-            self._status_var.set("Port must be an integer")
-            return
+            errors = []
+            if not ok_id:
+                errors.append("Motor ID must be 0–255")
+            if not ok_pos:
+                errors.append("Position must be 0–65535")
+            if not ok_mt:
+                errors.append("Move Time must be 0–65535")
+            if errors:
+                self._status_var.set(" | ".join(errors))
+                return
 
-        success, msg = _send_grpc(self._ip.get().strip(), port, motor_id, position, move_time)
-        self._status_var.set(f"OK — {msg}" if success else f"Error: {msg}")
+            try:
+                port = int(self._port.get().strip())
+            except ValueError:
+                self._status_var.set("Port must be an integer")
+                return
+
+            success, msg = _send_grpc(self._ip.get().strip(), port, motor_id, position, move_time)
+            self._status_var.set(f"OK — {msg}" if success else f"Error: {msg}")
+
+    RoboArmGui().mainloop()
 
 
 if __name__ == "__main__":
@@ -217,4 +220,4 @@ if __name__ == "__main__":
     if args.web:
         run_web()
     else:
-        RoboArmGui().mainloop()
+        run_desktop()
